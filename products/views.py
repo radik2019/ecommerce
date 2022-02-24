@@ -5,6 +5,9 @@ from .models import Product, Brand, Category
 import json
 from django.views.decorators.csrf import csrf_exempt
 
+def debug_(s):
+    print("*" * 50, "\n", s, '\n', "*" * 50)
+
 class RetrieveRESTViewMixin:
     def get_detail(self, request, pk=None, *args, **kwargs):
         resource = self.model.objects.filter(pk=pk) # Retrieve
@@ -12,6 +15,14 @@ class RetrieveRESTViewMixin:
             return JsonResponse({"detail": "Resource not found"}, status=404)
         return JsonResponse(model_to_dict(resource.first()), status=200, safe=False)
 
+class DeleteRESTViewMixin:
+    def del_detail(self, request, pk=None, *args, **kwargs):
+        resource = self.model.objects.filter(pk=pk)  # Retrieve
+        if not resource.exists():
+            return JsonResponse({"detail": "Resource not found"}, status=404)
+        resource_name = resource.first()
+        resource_name.first().delete()
+        return JsonResponse({"detail": f"[{resource_name}] has been deleted"}, status=200, safe=False)
 
 class ListRESTViewMixin:
     def get_list(self, request, *args, **kwargs):
@@ -31,6 +42,8 @@ class RESTView(View):
                     handler = getattr(self, "get_detail", self.http_method_not_allowed)
                 else:
                     handler = getattr(self, "get_list", self.http_method_not_allowed)
+            elif request.method.lower() == "delete":
+                handler = getattr(self, "del_detail", self.http_method_not_allowed)
             else:
                 handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
         else:
@@ -41,61 +54,44 @@ class RESTView(View):
         return JsonResponse({"detail": "Method not allowed!"}, status=405)
 
 
-class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin):
+
+
+class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteRESTViewMixin):
     model = Product 
     
     def post(self, request):
-        print(request.body)
+        """
+        {
+        "name": "Galaxy S4",       # string
+        "price": 200.01,           # float
+        "availability": 10,        # int
+        "category": "Elettronica", # str (existing category)
+        "brand": "Samsung"         # str (existing brand)
+        }
+        """
         task = None
         try:
             req_payload = json.loads(request.body)
-            print(req_payload)
-            
-            task_name = req_payload.get("name")
-            task_price = req_payload.get("price", "")
-            task_availability = int(req_payload.get("availability"))
-            task_category = req_payload.get("category")
-            task_brand = req_payload.get("brand")
-
             task = Product.objects.create(
-                name=task_name,
-                price=task_price,
-                availability=task_availability,
-                category=task_category,
-                brand=task_brand
+                name=req_payload.get("name"),
+                price=req_payload.get("price", ""),
+                availability=int(req_payload.get("availability")),
+                category=Category.objects.get(cat_name=req_payload.get("category")),
+                brand=Brand.objects.get(model_name=req_payload.get("brand"))
             )
         except Exception as e:
-            print(e) # Stampo nel log del server l'eccezione, qualunque essa sia
+            print(e)
             return JsonResponse(
                 {"error": "Errore nella creazione del modello"},
                 status=500
             )
-            
-        # res_payload = {
-        #     "id": task.pk,
-        #     "name": task.name,
-        #     "price": task.price,
-        #     "availability": task.availability,
-        #     "category_id": task.category.pk,
-        #     "brand_id": task.brand.pk,
-
-        # }
-
         return JsonResponse(model_to_dict(task), status=201)
 
-class BrandView(RESTView, ListRESTViewMixin):
+
+
+class BrandView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteRESTViewMixin):
     model = Brand
 
 
-
-
-class CategoryView(View):
-    def get(self, request, pk=None, *args, **kwargs):
-        if not pk:
-            collection = Category.objects.all()
-            to_serialize = [*map(lambda m: model_to_dict(m), collection)]
-            return JsonResponse(to_serialize, status=200, safe=False)
-        resource = Category.objects.filter(pk=pk)
-        if not resource.exists():
-            return JsonResponse({"detail": "category not found"}, status=404)
-        return JsonResponse(model_to_dict(resource.first()), status=200, safe=False)
+class CategoryView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteRESTViewMixin):
+    model = Category

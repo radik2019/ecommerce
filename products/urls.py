@@ -11,6 +11,4 @@ urlpatterns = [
     
     path('categories/', CategoryView.as_view(), name="categories"),
     path('categories/<int:pk>', CategoryView.as_view(), name="categories"),
-    
-
 ]

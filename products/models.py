@@ -5,8 +5,10 @@ class Product(models.Model):
     name = models.CharField(max_length=255)
     price = models.FloatField(default=0.01)
     availability = models.PositiveIntegerField(default=0)
-    category = models.ForeignKey("Category", on_delete=models.PROTECT, default=" ", null=True)
-    brand = models.ForeignKey("Brand", on_delete=models.PROTECT, null=True)
+    category = models.ForeignKey("Category",
+                                 on_delete=models.SET_NULL,
+                                 null=True, blank=True, related_name="products")
+    brand = models.ForeignKey("Brand", on_delete=models.PROTECT, related_name='products')
 
     def __str__(self):
         return self.name
