@@ -15,6 +15,7 @@ def debug_(s):
 
 class RetrieveRESTViewMixin:
     def get_detail(self, request, pk=None, *args, **kwargs):
+        debug_(pk)
         resource = self.model.objects.filter(pk=pk) # Retrieve
         if not resource.exists():
             return JsonResponse({"detail": "Resource not found"}, status=404)
@@ -27,7 +28,12 @@ class DeleteRESTViewMixin:
         if not resource.exists():
             return JsonResponse({"detail": "Resource not found"}, status=404)
         resource_name = resource.first()
-        resource_name.first().delete()
+        try:
+            resource_name.delete()
+        except ProtectedError:
+            return JsonResponse({"error": "Cannot delete some instances of model"/
+                                 "because they are referenced through protected foreign keys"},
+                                status=500)
         return JsonResponse({"detail": f"[{resource_name}] has been deleted"}, status=200, safe=False)
 
 
@@ -60,13 +66,14 @@ class RESTView(View):
     def http_method_not_allowed(self, request, *args, **kwargs):
         return JsonResponse({"detail": "Method not allowed!"}, status=405)
 
+
 class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteRESTViewMixin):
     model = Product 
     
     def hash_product(self, req_payload):
         name: str = req_payload.get("name")
-        category = Category.objects.get(cat_name=req_payload.get("category")).cat_name
-        brand = Brand.objects.get(model_name=req_payload.get("brand")).model_name
+        category = Category.objects.get(pk=req_payload.get("category")).cat_name
+        brand = Brand.objects.get(pk=req_payload.get("brand")).model_name
         s = (name + category + brand).encode(encoding='utf-8')
         hashed = sha256(s).hexdigest()
         return hashed
@@ -90,8 +97,8 @@ class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteREST
                 name=req_payload.get("name"),
                 price=req_payload.get("price"),
                 availability=int(req_payload.get("availability")),
-                category=Category.objects.get(cat_name=req_payload.get("category")),
-                brand=Brand.objects.get(model_name=req_payload.get("brand"))
+                category=Category.objects.get(pk=req_payload.get("category")),
+                brand=Brand.objects.get(pk=req_payload.get("brand"))
             )
         except Exception as e:
             print(e)
@@ -101,10 +108,10 @@ class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteREST
             )
         return JsonResponse(model_to_dict(task), status=201)
 
-    def put(self, request, pk, *args):
+    def put(self, request, *args):
         """_summary_
         {
-            "id": 8,
+            "id": 8, # id da modificare
             "name": "Qualita' Cremagusto",
             "price": 4.01,
             "availability": 10,
@@ -112,14 +119,24 @@ class ProductView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteREST
             "brand": 5
         }
         """
-        debug_(json.loads(request.body))
-        task = request.body
-        debug_(self.get_product_dict(pk))
-        
-        return JsonResponse(
-                {"error": "Errore nella modifica del modello"},
-                status=500)
-
+        req_payload = json.loads(request.body)
+        debug_(req_payload)
+        try:
+            product_obj = Product.objects.filter(pk=req_payload.get("id"))
+            product_obj.update(hash_summ=self.hash_product(req_payload))
+            product_obj.update(name=req_payload.get("name"))
+            product_obj.update(price=req_payload.get("price"))
+            product_obj.update(availability=req_payload.get("availability"))
+            product_obj.update(name=req_payload.get("category"))
+            product_obj.update(name=req_payload.get("brand"))
+            product_obj.update(category=Category.objects.get(pk=req_payload.get("category"))),
+            product_obj.update(brand=Brand.objects.get(pk=req_payload.get("brand")))
+            
+        except  Exception as e:
+            print(e)
+            return JsonResponse({"error": "Errore nella modifica del modello"}, status=500)
+        return JsonResponse(model_to_dict(Product.objects.get(pk=req_payload["id"])), status=201)
+    
 
 class BrandView(RESTView, ListRESTViewMixin, RetrieveRESTViewMixin, DeleteRESTViewMixin):
     model = Brand

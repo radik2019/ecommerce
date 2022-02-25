@@ -41,4 +41,3 @@ class Brand(models.Model):
         verbose_name = "Marca"
         verbose_name_plural = "Marchi"
 
-
