@@ -22,10 +22,10 @@ class Product(models.Model):
 
 
 class Category(models.Model):
-    cat_name = models.CharField(unique=True, db_index=True, max_length=40)
+    name = models.CharField(unique=True, db_index=True, max_length=40)
     
     def __str__(self):
-        return self.cat_name
+        return self.name
     class Meta:
         db_table = 'categories'
         verbose_name = "Categoria"
@@ -33,9 +33,9 @@ class Category(models.Model):
 
 
 class Brand(models.Model):
-    model_name = models.CharField(unique=True, db_index=True, max_length=40)
+    name = models.CharField(unique=True, db_index=True, max_length=40)
     def __str__(self):
-        return self.model_name
+        return self.name
     class Meta:
         db_table = 'brands'
         verbose_name = "Marca"

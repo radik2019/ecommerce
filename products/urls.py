@@ -10,5 +10,5 @@ urlpatterns = [
     path("brands/<int:pk>/", BrandView.as_view(), name="brands"),
     
     path('categories/', CategoryView.as_view(), name="categories"),
-    path('categories/<int:pk>', CategoryView.as_view(), name="categories"),
+    path('categories/<int:pk>/', CategoryView.as_view(), name="categories"),
 ]

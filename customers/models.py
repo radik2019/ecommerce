@@ -27,3 +27,5 @@ class Cart(models.Model):
         db_table = 'carts'
         verbose_name = "Carrello"
         verbose_name_plural = "Carrelli"
+
+
